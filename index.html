@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Portal del Viento - Gestión Integral</title>
+    <style>
+        :root {
+            --primary: #1a1a1a;
+            --success: #00b894;
+            --warning: #f1c40f;
+            --danger: #d63031;
+            --bg: #f5f6fa;
+            --white: #ffffff;
+            --whatsapp: #25d366;
+        }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; color: #333; }
+        header { background: var(--primary); color: white; padding: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .container { padding: 15px; max-width: 450px; margin: auto; }
+        .card { background: var(--white); padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }
+        
+        h3, h4 { margin-top: 0; color: var(--primary); }
+        label { display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; color: #666; text-transform: uppercase; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 1rem; background: #fafafa; }
+        
+        button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.3s; }
+        button:active { transform: scale(0.98); opacity: 0.9; }
+        
+        .btn-success { background: var(--success); }
+        .btn-wa { background: var(--whatsapp); color: white; margin-top: 10px; display: none; align-items: center; justify-content: center; text-decoration: none; border-radius: 10px; padding: 12px; font-weight: bold; gap: 10px; }
+        .btn-alt { background: #eee; color: #333; margin-top: 10px; border: 1px solid #ddd; }
+
+        #login-section, #admin-section, #client-view { display: none; }
+        .active { display: block !important; }
+
+        .movimiento { padding: 12px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .monto-pago { color: var(--success); font-weight: bold; }
+        .monto-venta { color: var(--danger); font-weight: bold; }
+        
+        .pago-pendiente-item { background: #fff9e6; border: 1px solid #ffeeba; padding: 12px; border-radius: 10px; margin-bottom: 10px; font-size: 0.9rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .pending-msg { background: #fff3cd; color: #856404; padding: 12px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 15px; border: 1px solid #ffeeba; display: none; }
+
+        #overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); color: white; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        .spinner { border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid #fff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div id="overlay">
+    <div class="spinner"></div>
+    <div id="status-text">PROCESANDO...</div>
+</div>
+
+<header>
+    <div style="font-weight: bold; letter-spacing: 1px; font-size: 1.2rem;">PORTAL DEL VIENTO</div>
+</header>
+
+<div class="container">
+    <div id="login-section" class="card active">
+        <h3>Ingreso de Cliente</h3>
+        <label>DNI o CUIT (solo números)</label>
+        <input type="number" id="dni-input" placeholder="Ej: 20351234567">
+        <button onclick="login()">VER MI CUENTA</button>
+        <p style="text-align: center; font-size: 0.75rem; color: #999; margin-top: 30px; cursor:pointer;" onclick="showAdmin()">Panel de Administración</p>
+    </div>
+
+    <div id="client-view" class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 id="client-name" style="margin:0; font-size: 1.2rem;">Nombre</h2>
+            <button onclick="logout()" style="width: auto; padding: 8px 15px; font-size: 0.7rem; background: #f0f0f0; color: #666;">SALIR</button>
+        </div>
+        
+        <div style="text-align: center; margin: 20px 0; padding: 15px; background: #fcfcfc; border-radius: 12px; border: 1px solid #eee;">
+            <div style="font-size: 0.7rem; color: #888; font-weight: bold;">SALDO ACTUAL</div>
+            <div id="client-balance" style="font-size: 2.2rem; font-weight: 900;">$0.00</div>
+        </div>
+
+        <div id="msg-validacion" class="pending-msg">
+            ⏳ Tu pago fue enviado. Rodrigo lo validará a la brevedad.
+        </div>
+        
+        <h3>Informar un Pago</h3>
+        <label>Monto transferido ($)</label>
+        <input type="number" id="pago-monto" placeholder="0.00">
+        <label>Foto del comprobante</label>
+        <input type="file" id="pago-foto" accept="image/*">
+        
+        <button class="btn-success" onclick="informarPago()">INFORMAR PAGO</button>
+        <a id="wa-pago-link" href="#" class="btn-wa" target="_blank">📲 ENVIAR AVISO WHATSAPP</a>
+        
+        <h4 style="margin-top: 30px;">Movimientos Verificados</h4>
+        <div id="historial-cliente"></div>
+    </div>
+
+    <div id="admin-section" class="card">
+        <h3>Administración</h3>
+        <div id="admin-login-box">
+            <label>Clave Maestra</label>
+            <input type="password" id="admin-pass">
+            <button onclick="checkAdminPass()">ENTRAR</button>
+        </div>
+        
+        <div id="admin-controls" style="display:none;">
+            <div style="background: #eef2f3; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #d1d8e0;">
+                <h4 style="margin-bottom:10px;">Nuevo Cliente</h4>
+                <label>DNI / CUIT</label>
+                <input type="number" id="new-dni">
+                <label>Nombre Completo</label>
+                <input type="text" id="new-name">
+                <button onclick="crearCliente()" style="background: var(--secondary); padding: 10px;">DAR DE ALTA</button>
+            </div>
+
+            <h4 style="color: #d35400;">⚠️ PAGOS POR VERIFICAR</h4>
+            <div id="lista-pagos-pendientes" style="margin-bottom: 20px;"></div>
+            
+            <hr>
+
+            <h4>Cargar Venta o Pago</h4>
+            <label>Seleccionar Cliente</label>
+            <select id="select-cliente-admin"></select>
+            <label>Importe ($)</label>
+            <input type="number" id="admin-monto">
+            <label>Tipo</label>
+            <select id="admin-tipo">
+                <option value="VENTA">VENTA (Resta saldo)</option>
+                <option value="PAGO">PAGO VERIFICADO (Suma saldo)</option>
+            </select>
+            <button onclick="registrarAccionAdmin()">REGISTRAR EN CUENTA</button>
+            
+            <button class="btn-alt" onclick="logout()">VOLVER AL INICIO</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const MI_TEL = "5492612074435";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby43eFk61VHDSfQ00Zh-UEx7xLOlmdmGc4TDquGEYzLvwbhoz8BtypxSOlhR20tSqZ2/exec";
+
+    let db = JSON.parse(localStorage.getItem('portalViento_Final')) || { clientes: {}, pendientes: [] };
+    if (!db.pendientes) db.pendientes = [];
+    
+    let currentDni = "";
+
+    function login() {
+        const dni = document.getElementById('dni-input').value;
+        if (db.clientes[dni]) { 
+            currentDni = dni; 
+            showView('client-view'); 
+            updateClientUI(); 
+        } else { alert("El DNI " + dni + " no está registrado."); }
+    }
+
+    function informarPago() {
+        const monto = document.getElementById('pago-monto').value;
+        const foto = document.getElementById('pago-foto').value;
+
+        if (!monto || monto <= 0) return alert("Ingresá un monto válido.");
+        if (!foto) return alert("Debes adjuntar la foto del comprobante.");
+
+        showOverlay("ENVIANDO...");
+        
+        // Guardar en la lista de pendientes para el Admin
+        db.pendientes.push({
+            dni: currentDni,
+            nombre: db.clientes[currentDni].nombre,
+            monto: monto,
+            fecha: new Date().toLocaleDateString('es-AR')
+        });
+        
+        localStorage.setItem('portalViento_Final', JSON.stringify(db));
+
+        // Preparar WhatsApp
+        const msj = `*Portal del Viento*%0A✅ He realizado un pago de *$${monto}*%0A👤 *Cliente:* ${db.clientes[currentDni].nombre}%0A(Adjunto comprobante)`;
+        const waBtn = document.getElementById('wa-pago-link');
+        waBtn.href = `https://wa.me/${MI_TEL}?text=${msj}`;
+        waBtn.style.display = 'flex';
+
+        document.getElementById('msg-validacion').style.display = 'block';
+        
+        // Sincronizar con Google Sheets (Pendiente)
+        fetch(WEB_APP_URL, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify({ dni: currentDni, tipo: 'PENDIENTE_AVISO', monto: monto })
+        });
+
+        setTimeout(() => {
+            hideOverlay();
+            alert("Pago informado. Por favor, tocá el botón verde para enviarme el comprobante por WhatsApp.");
+        }, 1000);
+    }
+
+    function renderPendientes() {
+        const container = document.getElementById('lista-pagos-pendientes');
+        if (db.pendientes.length === 0) {
+            container.innerHTML = '<p style="font-size:0.8rem; color:#999;">No hay pagos pendientes.</p>';
+            return;
+        }
+        container.innerHTML = db.pendientes.map((p, index) => `
+            <div class="pago-pendiente-item" onclick="cargarPendiente(${index})">
+                <span><b>${p.nombre}</b><br><small>${p.fecha}</small></span>
+                <span style="color:#00b894; font-weight:bold;">$${p.monto} ➔</span>
+            </div>
+        `).join('');
+    }
+
+    function cargarPendiente(index) {
+        const p = db.pendientes[index];
+        document.getElementById('select-cliente-admin').value = p.dni;
+        document.getElementById('admin-monto').value = p.monto;
+        document.getElementById('admin-tipo').value = "PAGO";
+        
+        // Lo sacamos de pendientes
+        db.pendientes.splice(index, 1);
+        localStorage.setItem('portalViento_Final', JSON.stringify(db));
+        renderPendientes();
+        alert("Datos cargados. Si verificaste el pago en el banco, dale a 'REGISTRAR'.");
+    }
+
+    function registrarAccionAdmin() {
+        const dni = document.getElementById('select-cliente-admin').value;
+        const monto = parseFloat(document.getElementById('admin-monto').value);
+        const tipo = document.getElementById('admin-tipo').value;
+        
+        if (!dni || isNaN(monto)) return alert("Completá todos los campos.");
+
+        if (tipo === "VENTA") db.clientes[dni].saldo -= monto;
+        else db.clientes[dni].saldo += monto;
+
+        db.clientes[dni].historial.push({ fecha: new Date().toLocaleDateString('es-AR'), tipo, monto });
+        localStorage.setItem('portalViento_Final', JSON.stringify(db));
+        
+        showOverlay("SINCRONIZANDO...");
+        fetch(WEB_APP_URL, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify({ dni, tipo, monto })
+        }).then(() => {
+            hideOverlay();
+            alert("Cuenta actualizada con éxito.");
+            location.reload();
+        });
+    }
+
+    function crearCliente() {
+        const dni = document.getElementById('new-dni').value;
+        const nombre = document.getElementById('new-name').value;
+        if(!dni || !nombre) return alert("Faltan datos para el alta.");
+        if(db.clientes[dni]) return alert("Este DNI ya existe.");
+
+        db.clientes[dni] = { nombre, saldo: 0, historial: [] };
+        localStorage.setItem('portalViento_Final', JSON.stringify(db));
+        
+        fetch(WEB_APP_URL, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify({ dni, tipo: 'ALTA_CLIENTE', monto: 0 })
+        });
+
+        alert("Cliente " + nombre + " dado de alta correctamente.");
+        document.getElementById('new-dni').value = "";
+        document.getElementById('new-name').value = "";
+        actualizarSelect();
+    }
+
+    function checkAdminPass() {
+        if(document.getElementById('admin-pass').value === "viento2026") {
+            document.getElementById('admin-login-box').style.display = "none";
+            document.getElementById('admin-controls').style.display = "block";
+            actualizarSelect();
+            renderPendientes();
+        } else { alert("Clave incorrecta."); }
+    }
+
+    function actualizarSelect() {
+        const s = document.getElementById('select-cliente-admin');
+        s.innerHTML = '<option value="">Seleccionar cliente...</option>';
+        Object.keys(db.clientes).forEach(dni => {
+            const opt = document.createElement('option');
+            opt.value = dni;
+            opt.innerText = db.clientes[dni].nombre + " (" + dni + ")";
+            s.appendChild(opt);
+        });
+    }
+
+    function updateClientUI() {
+        const c = db.clientes[currentDni];
+        document.getElementById('client-name').innerText = c.nombre;
+        const bal = document.getElementById('client-balance');
+        bal.innerText = `$${c.saldo.toFixed(2)}`;
+        bal.style.color = c.saldo >= 0 ? '#00b894' : '#d63031';
+        
+        const hist = document.getElementById('historial-cliente');
+        hist.innerHTML = c.historial.length === 0 ? '<p style="text-align:center; font-size:0.8rem; color:#999;">Sin movimientos verificados</p>' : 
+            c.historial.slice().reverse().map(m => `
+                <div class="movimiento">
+                    <span><small>${m.fecha}</small><br><b>${m.tipo}</b></span>
+                    <span class="${m.tipo==='PAGO'?'monto-pago':'monto-venta'}">${m.tipo==='PAGO'?'+':'-'}$${m.monto}</span>
+                </div>
+            `).join('');
+    }
+
+    function showView(id) {
+        ['login-section', 'admin-section', 'client-view'].forEach(v => document.getElementById(v).style.display = 'none');
+        document.getElementById(id).style.display = 'block';
+    }
+    function showAdmin() { showView('admin-section'); }
+    function logout() { location.reload(); }
+    function showOverlay(t) { document.getElementById('status-text').innerText = t; document.getElementById('overlay').style.display = 'flex'; }
+    function hideOverlay() { document.getElementById('overlay').style.display = 'none'; }
+</script>
+</body>
+</html>
